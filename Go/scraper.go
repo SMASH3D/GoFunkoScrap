@@ -1,14 +1,18 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/gocolly/colly"
 )
 
@@ -18,8 +22,8 @@ The Licence struct
 type Licence struct {
 	Name      string
 	Logo      string
-	ID        int64
-	CrawledAt string
+	LicenceID int64
+	CrawledAt time.Time
 	URL       string
 }
 
@@ -29,22 +33,26 @@ The Funko struct
 type Funko struct {
 	Name      string
 	ImgURL    string
-	Brand     string
 	Price     float64
-	LicenceID int64
-	Produced  string
+	LicenceID int64  //ID  of licence
+	Produced  string //date of release
 	Scale     string
-	Edition   string
-	Ref       string
-	CrawledAt string
+	Edition   string //translucent...
+	Ref       int64  //funko ref
+	Num       int64  //number within licence
+	CrawledAt time.Time
 }
 
 //Extracts a numeric ID from a string and a given regular expression
 func getIDFromURL(url string, regxpr string) (int64, error) {
 	regex := *regexp.MustCompile(regxpr)
-	id, err := strconv.ParseInt(regex.FindStringSubmatch(url)[1], 10, 64)
-	if err != nil {
+	submatches := regex.FindStringSubmatch(url)
+	if len(submatches) == 0 {
 		return 0, fmt.Errorf("Could not parse id from url : %s", url)
+	}
+	id, err := strconv.ParseInt(regex.FindStringSubmatch(url)[len(submatches)-1], 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("Could not parse id from url : %s - Reason: %s", url, err)
 	}
 	return id, err
 }
@@ -67,10 +75,10 @@ func parseLicences() []Licence {
 		if licenceID, err := getIDFromURL(url, `(?s)\/(\d+)\z`); err != nil {
 			fmt.Println("An error occured: ", err)
 		} else {
-			licence.ID = licenceID
+			licence.LicenceID = licenceID
 		}
 
-		licence.CrawledAt = time.Now().Format(time.RFC850)
+		licence.CrawledAt = time.Now()
 
 		licences = append(licences, licence)
 	})
@@ -80,7 +88,6 @@ func parseLicences() []Licence {
 
 	// Start scraping
 	c.Visit("https://www.placedespop.com/licences-figurines-funko-pop")
-	//c.Visit("https://www.placedespop.com/figurines-funko-pop/fantastik-plastik/173")
 
 	return licences
 }
@@ -113,11 +120,20 @@ func scrapeFunkos(licences []Licence) ([]Funko, int) {
 		}
 
 		funko.Name = e.ChildText(".prodl-libelle")
-		funko.Ref = e.ChildText(".prodl-ref")
-		if price, err := strconv.ParseFloat(e.ChildText(".prodl-prix"), 64); err == nil {
+		funko.ImgURL = e.ChildAttr(".prodl-img > img", "data-src")
+		if num, err := strconv.ParseInt(strings.ReplaceAll(e.ChildText(".prodl-ref"), "#", ""), 10, 64); err == nil {
+			funko.Num = num
+		}
+		funkoLink := e.Attr("href")
+		if funkoRef, err := getIDFromURL(funkoLink, `(\d+)\D+\d*\/\d+$`); err != nil {
+			fmt.Println("An error occured: ", err)
+		} else {
+			funko.Ref = funkoRef
+		}
+		if price, err := strconv.ParseFloat(strings.TrimSpace(strings.ReplaceAll(e.ChildText(".prodl-prix > span"), "€", "")), 64); err == nil {
 			funko.Price = price
 		}
-		funko.CrawledAt = time.Now().Format(time.RFC850)
+		funko.CrawledAt = time.Now()
 		funkos = append(funkos, funko)
 	})
 
@@ -125,16 +141,54 @@ func scrapeFunkos(licences []Licence) ([]Funko, int) {
 		fmt.Println("Visiting licence detail page : ", r.URL)
 		pageCount++
 	})
+	for i, licence := range licences {
+		fmt.Printf("%d = Licence: %s (%d) \n", i, licence.Name, licence.LicenceID)
+		c.Visit(licence.URL)
+	}
+
+	return funkos, pageCount
+}
+
+// SaveLicences persists the licence into DB
+func SaveLicences(licences []Licence) {
+	db, err := sql.Open("mysql", "crawler:popopop@tcp(db:3306)/funkoscrap")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	stmt, err := db.Prepare("REPLACE INTO licences(LicenceID, Name, Logo, URL, CrawledAt) VALUES (?, ?, ?, ?, ?)")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	for i, licence := range licences {
-		fmt.Printf("%d = Licence: %s (%d) \n", i, licence.Name, licence.ID)
-		c.Visit(licence.URL)
-
-		if i == 1 {
-			break
+		fmt.Printf("%d = Licence: %s (%d) \n", i, licence.Name, licence.LicenceID)
+		_, err := stmt.Exec(licence.LicenceID, licence.Name, licence.Logo, licence.URL, licence.CrawledAt.Format(time.RFC3339))
+		if err != nil {
+			log.Fatal(err)
 		}
 	}
-	return funkos, pageCount
+}
+
+// SaveFunkos persists the licence into DB
+func SaveFunkos(funkos []Funko) {
+	db, err := sql.Open("mysql", "crawler:popopop@tcp(db:3306)/funkoscrap")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	stmt, err := db.Prepare("REPLACE INTO funkos(LicenceID, Ref, Num, Name, ImgURL, Price, CrawledAt) VALUES (?, ?, ?, ?, ?, ?, ?)")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for i, funko := range funkos {
+		fmt.Printf("%d = funko: %s (%d) \n", i, funko.Name, funko.Ref)
+		_, err := stmt.Exec(funko.LicenceID, funko.Ref, funko.Num, funko.Name, funko.ImgURL, funko.Price, funko.CrawledAt.Format(time.RFC3339))
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 }
 
 func main() {
@@ -150,7 +204,9 @@ func main() {
 		// Dump json to the standard output
 		enc.Encode(licences)
 	}
+	SaveLicences(licences)
 	funkos, pageCount := scrapeFunkos(licences)
+	SaveFunkos(funkos)
 	if *isVerboseMode {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
@@ -158,5 +214,6 @@ func main() {
 		//enc.Encode(licences)
 		enc.Encode(funkos)
 	}
+
 	fmt.Println("pageCount : ", pageCount)
 }
