@@ -1,2 +1,3 @@
 FROM mysql:5.6
-COPY install.sql /docker-entrypoint-initdb.d/install.sql
+COPY sql_files/*.sh /docker-entrypoint-initdb.d/
+COPY sql_files/*.sql /docker-entrypoint-initdb.d/

@@ -3,6 +3,9 @@ services:
   db:
     build:
       context: ./MySQL
+    volumes:
+      - "funko-datavolume:/var/lib/mysql"
+      - "./MySQL/sql_files:/sql_files"
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: funkoscrap
@@ -23,3 +26,5 @@ services:
     tty: true
     depends_on:
       - db
+volumes:
+  funko-datavolume:
