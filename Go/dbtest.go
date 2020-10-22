@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	cnn, err := sql.Open("mysql", "crawler:popopop@tcp(db:3306)/funkoscrap")
+	cnn, err := sql.Open("mysql", "crawler:popopop@tcp(db:3307)/funkoscrap")
 	if err != nil {
 		log.Fatal(err)
 	}

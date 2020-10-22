@@ -14,7 +14,7 @@ CREATE TABLE `licences` (
 CREATE TABLE `funkos` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `LicenceID` int(11) DEFAULT NULL,
-  `Ref` int(11) DEFAULT NULL,
+  `Ref` varchar(256),
   `Num` int(11) DEFAULT NULL,
   `Produced` datetime DEFAULT NULL,
   `Scale` varchar(32) DEFAULT NULL,

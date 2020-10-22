@@ -38,7 +38,7 @@ type Funko struct {
 	Produced  string //date of release
 	Scale     string
 	Edition   string //translucent...
-	Ref       int64  //funko ref
+	Ref       string  //funko ref
 	Num       int64  //number within licence
 	CrawledAt time.Time
 }
@@ -104,10 +104,6 @@ func scrapeFunkos(licences []Licence) ([]Funko, int) {
 		amount := e.Text
 		fmt.Println("items : ", amount)
 	})
-	// c.OnHTML("div.lic-desc > div > p", func(e *colly.HTMLElement) {
-	//   desc := e.Text
-	//   fmt.Println("desc : ", desc)
-	// })
 
 	c.OnHTML("div.wrapper.wrapper-prods > div.prods > a", func(e *colly.HTMLElement) {
 
@@ -127,8 +123,10 @@ func scrapeFunkos(licences []Licence) ([]Funko, int) {
 		funkoLink := e.Attr("href")
 		if funkoRef, err := getIDFromURL(funkoLink, `(\d+)\D+\d*\/\d+$`); err != nil {
 			fmt.Println("An error occured: ", err)
+			funko.Ref = fmt.Sprintf("UNKNOWN-%d", time.Now().UnixNano() / int64(time.Millisecond))
+			fmt.Println("made up Ref: ", funko.Ref)
 		} else {
-			funko.Ref = funkoRef
+			funko.Ref = strconv.FormatInt(funkoRef, 10)
 		}
 		if price, err := strconv.ParseFloat(strings.TrimSpace(strings.ReplaceAll(e.ChildText(".prodl-prix > span"), "€", "")), 64); err == nil {
 			funko.Price = price
@@ -142,8 +140,12 @@ func scrapeFunkos(licences []Licence) ([]Funko, int) {
 		pageCount++
 	})
 	for i, licence := range licences {
-		fmt.Printf("%d = Licence: %s (%d) \n", i, licence.Name, licence.LicenceID)
-		c.Visit(licence.URL)
+		// UNCOMMENT FOLLOWING WHEN DEBUGING, TO ONLY PARSE 1 LICENCE PAGE
+		//if licence.Name == "Naruto" { 
+			fmt.Printf("%d = Licence: %s (%d) \n", i, licence.Name, licence.LicenceID)
+			c.Visit(licence.URL)
+		//}
+
 	}
 
 	return funkos, pageCount
@@ -151,7 +153,7 @@ func scrapeFunkos(licences []Licence) ([]Funko, int) {
 
 // SaveLicences persists the licence into DB
 func SaveLicences(licences []Licence) {
-	db, err := sql.Open("mysql", "crawler:popopop@tcp(db:3306)/funkoscrap")
+	db, err := sql.Open("mysql", "crawler:popopop@tcp(db:3307)/funkoscrap")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -172,7 +174,7 @@ func SaveLicences(licences []Licence) {
 
 // SaveFunkos persists the licence into DB
 func SaveFunkos(funkos []Funko) {
-	db, err := sql.Open("mysql", "crawler:popopop@tcp(db:3306)/funkoscrap")
+	db, err := sql.Open("mysql", "crawler:popopop@tcp(db:3307)/funkoscrap")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -183,7 +185,7 @@ func SaveFunkos(funkos []Funko) {
 	}
 
 	for i, funko := range funkos {
-		fmt.Printf("%d = funko: %s (%d) \n", i, funko.Name, funko.Ref)
+		fmt.Printf("%d = funko: %s (%s) \n", i, funko.Name, funko.Ref)
 		_, err := stmt.Exec(funko.LicenceID, funko.Ref, funko.Num, funko.Name, funko.ImgURL, funko.Price, funko.CrawledAt.Format(time.RFC3339))
 		if err != nil {
 			log.Fatal(err)
