@@ -153,7 +153,7 @@ func scrapeFunkos(licences []Licence) ([]Funko, int) {
 
 // SaveLicences persists the licence into DB
 func SaveLicences(licences []Licence) {
-	db, err := sql.Open("mysql", "crawler:popopop@tcp(db:3307)/funkoscrap")
+	db, err := sql.Open("mysql", "crawler:popopop@tcp(db:3306)/funkoscrap")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -174,7 +174,7 @@ func SaveLicences(licences []Licence) {
 
 // SaveFunkos persists the licence into DB
 func SaveFunkos(funkos []Funko) {
-	db, err := sql.Open("mysql", "crawler:popopop@tcp(db:3307)/funkoscrap")
+	db, err := sql.Open("mysql", "crawler:popopop@tcp(db:3306)/funkoscrap")
 	if err != nil {
 		log.Fatal(err)
 	}

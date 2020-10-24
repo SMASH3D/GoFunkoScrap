@@ -38,6 +38,13 @@ docker exec -it golang_app bash -c "go run scraper.go"
 
 ### Exporting the funko image names into a csv file
 
+From golang_db container
 ```bash
 mysql -ucrawler  funkoscrap  -ppopopop -e "select ImgURL from funkos" | sed 's/\t/","/g;s/^/"/;s/$/"/;s/\n//g' > funkos_images.csv
+```
+
+You can still access the db from your host computer using:
+
+```bash
+mysql --host=127.0.0.1 -ucrawler  funkoscrap  -ppopopop --port=3307
 ```
