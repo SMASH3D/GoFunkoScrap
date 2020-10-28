@@ -17,7 +17,7 @@ When building the containers for the first time, the db needs to be initialized.
 
 ```bash
 docker exec -it golang_db bash
-mysql -ucrawler  funkoscrap  -ppopopop -e < /sql_files/install.sql
+mysql -ucrawler  funkoscrap  -ppopopop < /sql_files/install.sql
 ```
 
 ## Running the scraper
@@ -47,4 +47,16 @@ You can still access the db from your host computer using:
 
 ```bash
 mysql --host=127.0.0.1 -ucrawler  funkoscrap  -ppopopop --port=3307
+```
+
+EXPORT ALL LICENCES
+
+```bash
+mysql --host=127.0.0.1 -ucrawler  funkoscrap  -ppopopop --port=3307 -e 'SELECT LicenceID as licence_id, Ref as reference, Num as number, Name as name, ImgURL as url_img_box, Price as price FROM funkos'  | sed 's/\t/","/g;s/^/"/;s/$/"/;s/\n//g' > funkos_`date +"%Y-%m-%d"`.csv
+```
+
+EXPORT ALL FUNKOS
+
+```bash
+mysql --host=127.0.0.1 -ucrawler  funkoscrap  -ppopopop --port=3307 -e 'SELECT LicenceID as licence_id, Ref as reference, Num as number, Name as name, ImgURL as url_img_box, Price as price FROM funkos'  | sed 's/\t/","/g;s/^/"/;s/$/"/;s/\n//g' > funkos_`date +"%Y-%m-%d"`.csv
 ```

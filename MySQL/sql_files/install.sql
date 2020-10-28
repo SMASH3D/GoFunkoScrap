@@ -9,7 +9,7 @@ CREATE TABLE `licences` (
   `CrawledAt` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `licenceID_idx` (`LicenceID`)
-) ENGINE=InnoDB AUTO_INCREMENT=361 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=361 DEFAULT CHARSET=latin1;
 
 CREATE TABLE `funkos` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
@@ -25,4 +25,4 @@ CREATE TABLE `funkos` (
   `CrawledAt` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `ref_idx` (`Ref`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
